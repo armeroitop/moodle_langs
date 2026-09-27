@@ -1,0 +1,44 @@
+{
+  "name": "moodle-lang-editor",
+  "displayName": "Moodle Lang Editor",
+  "description": "Ver y editar en una tabla las cadenas de idioma (lang/xx/*.php) de plugins de Moodle.",
+  "version": "0.1.0",
+  "publisher": "local",
+  "license": "GPL-3.0-or-later",
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "main": "./out/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "moodleLang.open",
+        "title": "Editar traducciones (Moodle)"
+      }
+    ],
+    "menus": {
+      "explorer/context": [
+        {
+          "command": "moodleLang.open",
+          "when": "explorerResourceIsFolder",
+          "group": "navigation@90"
+        }
+      ]
+    }
+  },
+  "scripts": {
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "test": "npm run compile && node ./out/test/langParser.test.js",
+    "package": "vsce package --allow-missing-repository"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "@types/vscode": "^1.85.0",
+    "@vscode/vsce": "^3.0.0",
+    "typescript": "^5.4.0"
+  }
+}
