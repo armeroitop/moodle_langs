@@ -1,5 +1,5 @@
 import * as assert from 'node:assert/strict';
-import { applyEdits, computeEdits, diffEdit, encodeValue, mirrorLayout, parseLangFile } from '../langParser';
+import { applyEdits, computeEdits, diffEdit, duplicateLines, encodeValue, mirrorLayout, parseLangFile } from '../langParser';
 
 const sample = `<?php
 // $string['commented'] = 'no';
@@ -122,4 +122,10 @@ test('diffEdit', () => {
   assert.deepEqual(e, { start: 3, end: 4, text: 'YY' });
   assert.equal(applyEdits('abcXdef', [e]), 'abcYYdef');
   assert.equal(diffEdit('a', 'a'), null);
+});
+
+test('duplicateLines', () => {
+  const text = "<?php\n$string['a'] = 'A';\n// $string['b'] = 'comentada';\n$string['b'] = 'B';\n\n$string['a'] = 'A2'; $string['c'] = 'C';\n$string['a'] = <<<EOT\nx\nEOT;\n";
+  assert.deepEqual([...duplicateLines(text)], [['a', [2, 6, 7]]]);
+  assert.equal(duplicateLines(sample).size, 0);
 });

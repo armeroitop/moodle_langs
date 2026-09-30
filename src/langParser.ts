@@ -182,6 +182,25 @@ export function parseLangFile(text: string): LangEntry[] {
   return entries;
 }
 
+/**
+ * Claves asignadas más de una vez en el fichero, con los números de línea (desde 1) de cada
+ * asignación. En PHP solo vale la última; las anteriores son restos que conviene quitar.
+ */
+export function duplicateLines(text: string): Map<string, number[]> {
+  const lines = new Map<string, number[]>();
+  let line = 1;
+  let pos = 0;
+  for (const e of parseLangFile(text)) {
+    for (; pos < e.stmtStart; pos++) {
+      if (text[pos] === '\n') {
+        line++;
+      }
+    }
+    lines.set(e.key, [...(lines.get(e.key) ?? []), line]);
+  }
+  return new Map([...lines].filter(([, ls]) => ls.length > 1));
+}
+
 /** Texto anterior a la primera cadena (etiqueta PHP, licencia y docblock). */
 export function fileHeader(text: string): string {
   const entries = parseLangFile(text);

@@ -23,6 +23,8 @@ Clic derecho sobre la carpeta `lang` de un plugin (o sobre la carpeta del plugin
 - Las cadenas que no son un literal simple (concatenaciones, heredoc, `"$var"`) se muestran
   en solo lectura.
 - Doble clic en una clave abre el fichero en esa línea.
+- Las claves asignadas más de una vez en un fichero se marcan en su celda con las líneas
+  de cada asignación (en PHP vale la última) y la cabecera del idioma muestra cuántas hay.
 
 ## Desarrollo
 ```

@@ -202,3 +202,26 @@ tr.deleted td.key {
 tr.deleted td.actions {
   opacity: 1;
 }
+
+th .dupcount {
+  margin-right: 6px;
+  font-size: 0.85em;
+  font-weight: normal;
+  color: var(--vscode-editorWarning-foreground);
+}
+
+td.duplicate textarea {
+  border-color: var(--vscode-editorWarning-foreground);
+}
+
+td .dup {
+  display: block;
+  margin-top: 2px;
+  font-size: 0.85em;
+  color: var(--vscode-editorWarning-foreground);
+  text-decoration: none;
+}
+
+td .dup:hover {
+  text-decoration: underline;
+}

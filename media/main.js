@@ -2,7 +2,7 @@
 (function () {
   const vscode = acquireVsCodeApi();
 
-  /** @type {{component: string, langs: string[], keys: string[], values: Record<string, Record<string, {v: string, e: boolean}>>, missingFiles: string[], refLang: string | null, unsynced: string[]} | null} */
+  /** @type {{component: string, langs: string[], keys: string[], values: Record<string, Record<string, {v: string, e: boolean, d?: number[]}>>, missingFiles: string[], refLang: string | null, unsynced: string[]} | null} */
   let model = null;
   /** Ediciones pendientes: "lang\0key" -> valor. */
   let dirty = new Map();
@@ -57,9 +57,11 @@
           e.preventDefault();
           vscode.postMessage({ type: 'openFile', lang });
         });
+        const dups = Object.values(m.values[lang] ?? {}).filter(c => c.d).length;
         const th = el('th', { dataset: { lang } },
           el('span', { className: 'lang' }, lang),
           el('span', { className: 'count' }),
+          dups ? el('span', { className: 'dupcount', title: `${dups} claves asignadas más de una vez en el fichero` }, `⚠ ${dups}`) : '',
           m.missingFiles.includes(lang) ? el('span', { className: 'nofile', title: 'Se creará al guardar' }, 'nuevo') : open,
         );
         return th;
@@ -89,7 +91,20 @@
             ta.title = 'Expresión PHP compleja: edítala directamente en el fichero';
           }
           ta.addEventListener('input', () => onInput(ta));
-          return el('td', {}, ta);
+          if (!orig?.d) {
+            return el('td', {}, ta);
+          }
+          const dup = el('a', {
+            href: '#',
+            className: 'dup',
+            title: 'En PHP vale la última asignación; las anteriores sobran. Clic: abrir el fichero en la última.',
+            textContent: `⚠ Repetida en las líneas ${orig.d.join(', ')}`,
+          });
+          dup.addEventListener('click', e => {
+            e.preventDefault();
+            vscode.postMessage({ type: 'openFile', lang, key });
+          });
+          return el('td', { className: 'duplicate' }, ta, dup);
         }),
         el('td', { className: 'actions' }, del),
       );

@@ -1,11 +1,13 @@
 import * as path from 'path';
 import * as vscode from 'vscode';
-import { mirrorLayout, parseLangFile } from './langParser';
+import { duplicateLines, mirrorLayout, parseLangFile } from './langParser';
 
 export interface CellValue {
   v: string;
   /** Editable (literal simple). */
   e: boolean;
+  /** Si la clave está asignada varias veces en el fichero: líneas de cada asignación (vale la última). */
+  d?: number[];
 }
 
 export interface LangModel {
@@ -93,6 +95,9 @@ export async function loadModel(langDir: vscode.Uri, component: string): Promise
         seen.add(entry.key);
         keys.push(entry.key);
       }
+    }
+    for (const [key, lines] of duplicateLines(text)) {
+      values[lang][key].d = lines;
     }
   }
 
