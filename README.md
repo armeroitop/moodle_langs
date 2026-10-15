@@ -2,6 +2,25 @@
 
 Editor en tabla de las cadenas de idioma de un plugin de Moodle (`lang/<idioma>/<componente>.php`).
 
+## Instalación
+El repositorio no incluye el `.vsix`: hay que generarlo. Requiere Node.js y npm.
+
+```
+npm install                  # imprescindible: sin él, "tsc: not found"
+npm run compile
+npm run package              # genera moodle-lang-editor-<versión>.vsix (requiere Node >= 20)
+code --install-extension moodle-lang-editor-<versión>.vsix --force
+```
+Después, en VSCode: `Ctrl+Shift+P` → **Developer: Reload Window**.
+
+Con Node 18, `npm run package` falla con `ReferenceError: File is not defined`. Hay dos
+soluciones: actualizar Node (`nvm install 20 && nvm use 20`) o empaquetar con vsce 2:
+```
+npx @vscode/vsce@2 package --allow-missing-repository
+```
+
+También se puede instalar desde VSCode: Extensiones → `···` → **Install from VSIX...**
+
 ## Uso
 Clic derecho sobre la carpeta `lang` de un plugin (o sobre la carpeta del plugin, o `lang/es`)
 → **Editar traducciones (Moodle)**.
