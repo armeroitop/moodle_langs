@@ -32,7 +32,7 @@
   "scripts": {
     "compile": "tsc -p ./",
     "watch": "tsc -watch -p ./",
-    "test": "npm run compile && node ./out/test/langParser.test.js",
+    "test": "npm run compile && node ./out/test/langParser.test.js && node ./out/test/csv.test.js",
     "package": "vsce package --allow-missing-repository"
   },
   "devDependencies": {

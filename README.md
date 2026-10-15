@@ -44,6 +44,14 @@ Clic derecho sobre la carpeta `lang` de un plugin (o sobre la carpeta del plugin
 - Doble clic en una clave abre el fichero en esa línea.
 - Las claves asignadas más de una vez en un fichero se marcan en su celda con las líneas
   de cada asignación (en PHP vale la última) y la cabecera del idioma muestra cuántas hay.
+- **Exportar CSV** guarda la tabla tal como se ve (columnas `Clave`, `en`, `es`…, incluidos
+  los cambios sin guardar), separada por `;` y en UTF-8 con BOM para abrirla en Excel o
+  LibreOffice.
+- **Importar CSV** lee un fichero con el mismo formato (separador `;`, `,` o tabulador; la
+  primera columna es la clave y el resto, códigos de idioma). Si algún código no es válido no
+  se importa nada; si hay idiomas que no existen en el plugin, pregunta si añadirlos o ignorar
+  esas columnas. Los valores quedan como cambios pendientes (hay que pulsar **Guardar**);
+  las celdas vacías del CSV y las cadenas de solo lectura no se modifican.
 
 ## Desarrollo
 ```

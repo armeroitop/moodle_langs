@@ -1,5 +1,6 @@
 import * as crypto from 'crypto';
 import * as vscode from 'vscode';
+import { parseCsv, toCsv } from './csv';
 import { applyEdits, computeEdits, diffEdit, fileHeader, mirrorLayout, parseLangFile } from './langParser';
 import { langFileUri, loadModel, readText } from './langModel';
 
@@ -15,9 +16,13 @@ type Message =
   | { type: 'save'; changes: Change[] }
   | { type: 'dirty'; count: number }
   | { type: 'addLang' }
+  | { type: 'export'; rows: string[][] }
+  | { type: 'import' }
   | { type: 'openFile'; lang: string; key?: string };
 
 const LANG_CODE_RE = /^[a-z]{2,3}(_[a-z0-9]+)*$/;
+/** Misma regla que al añadir una clave desde el panel. */
+const KEY_RE = /^[\w:./-]+$/;
 
 export class LangPanel {
   private static readonly panels = new Map<string, LangPanel>();
@@ -80,6 +85,12 @@ export class LangPanel {
           break;
         case 'addLang':
           await this.addLang();
+          break;
+        case 'export':
+          await this.exportCsv(m.rows);
+          break;
+        case 'import':
+          await this.importCsv();
           break;
         case 'openFile':
           await this.openFile(m.lang, m.key);
@@ -222,9 +233,97 @@ export class LangPanel {
     if (!lang) {
       return;
     }
-    // El fichero se crea al guardar la primera cadena de ese idioma.
-    await vscode.workspace.fs.createDirectory(vscode.Uri.joinPath(this.langDir, lang));
+    await this.createLangDir(lang);
     await this.postModel(false);
+  }
+
+  /** El fichero se crea al guardar la primera cadena de ese idioma. */
+  private async createLangDir(lang: string) {
+    await vscode.workspace.fs.createDirectory(vscode.Uri.joinPath(this.langDir, lang));
+  }
+
+  private async exportCsv(rows: string[][]) {
+    const uri = await vscode.window.showSaveDialog({
+      defaultUri: vscode.Uri.joinPath(this.langDir, '..', this.component + '.csv'),
+      filters: { CSV: ['csv'] },
+    });
+    if (!uri) {
+      return;
+    }
+    await vscode.workspace.fs.writeFile(uri, new TextEncoder().encode(toCsv(rows)));
+    vscode.window.showInformationMessage(`Exportadas ${rows.length - 1} claves a ${vscode.workspace.asRelativePath(uri)}.`);
+  }
+
+  /**
+   * Lee un CSV (clave + una columna por idioma) y manda sus valores al webview como cambios
+   * pendientes: no se escribe nada hasta que el usuario pulse Guardar.
+   */
+  private async importCsv() {
+    const [uri] = (await vscode.window.showOpenDialog({
+      defaultUri: vscode.Uri.joinPath(this.langDir, '..'),
+      filters: { CSV: ['csv', 'tsv', 'txt'] },
+      canSelectMany: false,
+    })) ?? [];
+    if (!uri) {
+      return;
+    }
+    const [header, ...rows] = parseCsv(new TextDecoder('utf-8').decode(await vscode.workspace.fs.readFile(uri)));
+    if (!header || header.length < 2) {
+      throw new Error('el CSV debe tener una columna de claves y al menos una de idioma.');
+    }
+    const langs = header.slice(1).map(h => h.trim());
+    const invalid = langs.filter(l => !LANG_CODE_RE.test(l));
+    if (invalid.length) {
+      throw new Error(`códigos de idioma no válidos en la cabecera del CSV: ${invalid.map(l => `"${l}"`).join(', ')}.`);
+    }
+    const repeated = langs.filter((l, i) => langs.indexOf(l) !== i);
+    if (repeated.length) {
+      throw new Error(`idiomas repetidos en la cabecera del CSV: ${[...new Set(repeated)].join(', ')}.`);
+    }
+
+    const model = await loadModel(this.langDir, this.component);
+    const newLangs = langs.filter(l => !model.langs.includes(l));
+    const skipLangs = new Set<string>();
+    if (newLangs.length) {
+      const add = 'Añadir idiomas';
+      const ignore = 'Ignorar esas columnas';
+      const answer = await vscode.window.showWarningMessage(
+        `El CSV incluye idiomas que no existen en el plugin: ${newLangs.join(', ')}.`,
+        { modal: true, detail: 'Si se añaden, sus ficheros se crearán al guardar.' },
+        add,
+        ignore,
+      );
+      if (answer === add) {
+        for (const lang of newLangs) {
+          await this.createLangDir(lang);
+        }
+        await this.postModel(false);
+      } else if (answer === ignore) {
+        newLangs.forEach(l => skipLangs.add(l));
+      } else {
+        return;
+      }
+    }
+
+    const values: Change[] = [];
+    const seen = new Set<string>();
+    let skippedRows = 0;
+    for (const row of rows) {
+      const key = (row[0] ?? '').trim();
+      if (!KEY_RE.test(key) || seen.has(key)) {
+        skippedRows++;
+        continue;
+      }
+      seen.add(key);
+      langs.forEach((lang, i) => {
+        const value = row[i + 1] ?? '';
+        // Celda vacía: sin cambios.
+        if (value !== '' && !skipLangs.has(lang)) {
+          values.push({ lang, key, value });
+        }
+      });
+    }
+    await this.panel.webview.postMessage({ type: 'imported', values, skippedRows });
   }
 
   private async openFile(lang: string, key?: string) {
@@ -258,6 +357,8 @@ export class LangPanel {
   <input id="newKey" type="text" placeholder="nueva_clave">
   <button id="addKey" class="secondary">Añadir clave</button>
   <button id="addLang" class="secondary">Añadir idioma</button>
+  <button id="export" class="secondary" title="Exportar la tabla tal como se ve (con los cambios sin guardar)">Exportar CSV</button>
+  <button id="import" class="secondary" title="Cargar cadenas de un CSV como cambios pendientes de guardar">Importar CSV</button>
   <button id="sync" class="secondary" hidden>Ordenar como en</button>
   <button id="save" disabled>Guardar</button>
   <span id="status"></span>

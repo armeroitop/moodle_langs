@@ -238,6 +238,54 @@
     /** @type {HTMLTextAreaElement | null | undefined} */ (row?.querySelector('textarea:not([readonly])'))?.focus();
   }
 
+  /** Envía la tabla tal como se ve (con ediciones sin guardar, sin las claves marcadas para borrar). */
+  function exportCsv() {
+    if (!model) {
+      return;
+    }
+    const langs = model.langs;
+    const rows = [['Clave', ...langs], ...allKeys().filter(k => !deleted.has(k)).map(k => [k, ...langs.map(l => current(l, k))])];
+    vscode.postMessage({ type: 'export', rows });
+  }
+
+  /** Aplica los valores de un CSV como cambios pendientes. */
+  function applyImport(/** @type {{lang: string, key: string, value: string}[]} */ values, /** @type {number} */ skippedRows) {
+    if (!model) {
+      return;
+    }
+    const newKeys = new Set();
+    let imported = 0;
+    let readonly = 0;
+    for (const { lang, key, value } of values) {
+      if (!model.langs.includes(lang)) {
+        continue;
+      }
+      if (!allKeys().includes(key)) {
+        added.push(key);
+        newKeys.add(key);
+      }
+      const orig = original(lang, key);
+      if (orig && !orig.e) {
+        readonly++;
+        continue;
+      }
+      const id = cellId(lang, key);
+      if (orig && orig.v === value) {
+        dirty.delete(id);
+      } else {
+        dirty.set(id, value);
+        imported++;
+      }
+    }
+    render();
+    const skipped = [
+      readonly ? `${readonly} celdas de solo lectura` : '',
+      skippedRows ? `${skippedRows} filas con clave no válida o repetida` : '',
+    ].filter(Boolean).join(', ');
+    status.textContent = `CSV: ${imported} cadenas cambiadas, ${newKeys.size} claves nuevas` +
+      (skipped ? ` (omitidas: ${skipped})` : '') + '. Revisa y pulsa Guardar.';
+  }
+
   window.addEventListener('message', event => {
     const msg = event.data;
     if (msg.type === 'load') {
@@ -253,6 +301,8 @@
         deleted = new Set([...deleted].filter(k => model?.keys.includes(k)));
       }
       render();
+    } else if (msg.type === 'imported') {
+      applyImport(msg.values, msg.skippedRows);
     } else if (msg.type === 'saveFailed') {
       saving = false;
       refresh();
@@ -270,6 +320,8 @@
     }
   });
   $('addLang').addEventListener('click', () => vscode.postMessage({ type: 'addLang' }));
+  $('export').addEventListener('click', exportCsv);
+  $('import').addEventListener('click', () => vscode.postMessage({ type: 'import' }));
   document.addEventListener('keydown', e => {
     if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's') {
       e.preventDefault();
